@@ -82,9 +82,10 @@ class Q(object):
     import tempfile
     import time
 
-    # The debugging log will go to this file; temporary files will also have
-    # this path as a prefix, followed by a random number.
-    OUTPUT_PATH = os.path.join(tempfile.gettempdir(), 'q')
+    # The debugging log will go to this file on Unix systems;
+    # use /tmp/q for consistent behavior (especially on MacOS).
+    # Temporary files will be named with this prefix plus a random suffix.
+    OUTPUT_PATH = '/tmp/q'
 
     NORMAL, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN = ESCAPE_SEQUENCES
     TEXT_REPR = pydoc.TextRepr()
@@ -256,17 +257,28 @@ class Q(object):
             self.current_position += 1
 
     def get_call_exprs(self, caller_frame, line):
-        """Gets the argument expressions from the source of a function call."""
+        """Extracts argument expression labels from the source of a q() call using basic parsing."""
         line = line.lstrip()
         try:
             tree = self.ast.parse(line)
         except SyntaxError:
             return None
 
-        if self.sys.version_info >= (3, 8):
-            return self._get_accurate_call_exprs(caller_frame, line, tree)
+        # Use the basic extraction to get raw argument expressions
+        raw = self._get_basic_call_exprs(caller_frame, line, tree)
+        if not raw:
+            return None
 
-        return self._get_basic_call_exprs(caller_frame, line, tree)
+        # Label simple arguments (names or attributes), leave others unlabeled
+        labels = []
+        simple_re = self.re.compile(r'^[A-Za-z_][A-Za-z0-9_\.]*$')
+        for expr in raw:
+            expr = expr.strip()
+            if simple_re.match(expr):
+                labels.append(expr)
+            else:
+                labels.append(None)
+        return labels
 
     def _get_basic_call_exprs(self, caller_frame, line, tree):
         """Gets the argument expressions from the source of a function call.
@@ -335,6 +347,12 @@ class Q(object):
             if current_bytecode_instruction.opname.startswith('CALL'):
                 position_of_call_on_line += 1
 
+        # DEBUG: log call_position for accurate extraction
+        try:
+            # Write debug info to stderr
+            self.sys.stderr.write(f"_get_accurate_call_exprs: call_position={position_of_call_on_line} line='{line}'\n")
+        except Exception:
+            pass
         call_visitor = self.CallVisitor(position_of_call_on_line)
         call_visitor.visit(tree)
         node = call_visitor.call_node
@@ -362,13 +380,18 @@ class Q(object):
         reprs = map(self.safe_repr, values)
         if labels:
             sep = ''
-            for label, repr in zip(labels, reprs):
-                s.add([label + '=', self.CYAN, repr, self.NORMAL], sep)
+            for label, val_repr in zip(labels, reprs):
+                if label:
+                    # Labelled argument
+                    s.add([label + '=', self.CYAN, val_repr, self.NORMAL], sep)
+                else:
+                    # Unlabelled argument
+                    s.add([self.CYAN, val_repr, self.NORMAL], sep)
                 sep = ', '
         else:
             sep = ''
-            for repr in reprs:
-                s.add([self.CYAN, repr, self.NORMAL], sep)
+            for val_repr in reprs:
+                s.add([self.CYAN, val_repr, self.NORMAL], sep)
                 sep = ', '
         self.writer.write(s.chunks)
 
