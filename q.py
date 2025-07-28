@@ -83,9 +83,11 @@ class Q(object):
     import time
 
     # The debugging log will go to this file on Unix systems;
-    # use /tmp/q for consistent behavior (especially on MacOS).
+    # use TMPDIR environment variable if set (especially on MacOS).
     # Temporary files will be named with this prefix plus a random suffix.
-    OUTPUT_PATH = '/tmp/q'
+    OUTPUT_PATH = os.path.join(
+        os.environ.get('TMPDIR', '/tmp'), 'q'
+    )
 
     NORMAL, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN = ESCAPE_SEQUENCES
     TEXT_REPR = pydoc.TextRepr()
@@ -264,8 +266,11 @@ class Q(object):
         except SyntaxError:
             return None
 
-        # Use the basic extraction to get raw argument expressions
-        raw = self._get_basic_call_exprs(caller_frame, line, tree)
+        # For Python 3.8+, use accurate extraction; otherwise fall back to basic
+        if self.sys.version_info >= (3, 8):
+            raw = self._get_accurate_call_exprs(caller_frame, line, tree)
+        else:
+            raw = self._get_basic_call_exprs(caller_frame, line, tree)
         if not raw:
             return None
 

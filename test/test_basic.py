@@ -11,23 +11,25 @@ import unittest
 
 qpath = os.path.abspath(os.path.join(os.path.split(__file__)[0], '..'))
 sys.path.insert(0, qpath)
+import q
+Q_PATH = q.OUTPUT_PATH
 
 
 class TestQBasic(unittest.TestCase):
 
     def setUp(self):
-        if os.path.exists('/tmp/q'):
-            os.remove('/tmp/q')
+        if os.path.exists(Q_PATH):
+            os.remove(Q_PATH)
 
     def tearDown(self):
         self.setUp()
 
     def assertInQLog(self, string):
         # Check the log file exists.
-        self.assertTrue(os.path.exists('/tmp/q'))
+        self.assertTrue(os.path.exists(Q_PATH))
 
         # Read in the data.
-        f = open('/tmp/q', 'r')
+        f = open(Q_PATH, 'r')
         logdata = f.read()
         f.close()
 
