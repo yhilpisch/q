@@ -16,8 +16,6 @@ All output goes to /tmp/q, which you can watch with this shell command:
 
     tail -f /tmp/q
 
-If TMPDIR is set, the output goes to $TMPDIR/q.
-
 To print the value of foo, insert this into your program:
 
     import q; q(foo)
@@ -83,11 +81,9 @@ class Q(object):
     import time
 
     # The debugging log will go to this file on Unix systems;
-    # use TMPDIR environment variable if set (especially on MacOS).
+    # The debugging log will go to this fixed path on Unix systems.
     # Temporary files will be named with this prefix plus a random suffix.
-    OUTPUT_PATH = os.path.join(
-        os.environ.get('TMPDIR', '/tmp'), 'q'
-    )
+    OUTPUT_PATH = '/tmp/q'
 
     NORMAL, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN = ESCAPE_SEQUENCES
     TEXT_REPR = pydoc.TextRepr()
