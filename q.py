@@ -262,10 +262,14 @@ class Q(object):
         except SyntaxError:
             return None
 
-        # For Python 3.8+, use accurate extraction; otherwise fall back to basic
+        # Try accurate extraction on Python 3.8+, but always fallback to basic if it fails or returns nothing.
+        raw = None
         if self.sys.version_info >= (3, 8):
-            raw = self._get_accurate_call_exprs(caller_frame, line, tree)
-        else:
+            try:
+                raw = self._get_accurate_call_exprs(caller_frame, line, tree)
+            except Exception:
+                raw = None
+        if not raw:
             raw = self._get_basic_call_exprs(caller_frame, line, tree)
         if not raw:
             return None
@@ -348,12 +352,6 @@ class Q(object):
             if current_bytecode_instruction.opname.startswith('CALL'):
                 position_of_call_on_line += 1
 
-        # DEBUG: log call_position for accurate extraction
-        try:
-            # Write debug info to stderr
-            self.sys.stderr.write(f"_get_accurate_call_exprs: call_position={position_of_call_on_line} line='{line}'\n")
-        except Exception:
-            pass
         call_visitor = self.CallVisitor(position_of_call_on_line)
         call_visitor.visit(tree)
         node = call_visitor.call_node
